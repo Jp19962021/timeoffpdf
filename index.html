@@ -24,14 +24,26 @@ field('Full days',55,658,20,20,'radio','dayType');field('Partial day',248,658,20
 field('Yes use vacation hours',55,801,20,20,'radio','vacation');field('No unpaid',369,801,20,20,'radio','vacation');field('Use a combination',780,801,20,20,'radio','vacation');field('Combination details',353,833,676);
 field('Employee notes',47,933,992,69,'textarea');
 field('Approved',55,1079,20,20,'radio','approval');field('Denied',264,1079,20,20,'radio','approval');field('Partially approved',437,1079,20,20,'radio','approval');
-field('Manager or supervisor name',274,1115,306);field('Manager signature (typed or sign after printing)',699,1115,331);field('Approval date',103,1157,261,24,'date');field('Management notes',463,1157,567);
+field('Manager or supervisor name',274,1115,306);field('Approval date',103,1157,261,24,'date');field('Management notes',463,1157,567);
+const signature=document.createElement('canvas');signature.id='managerSignature';signature.width=662;signature.height=84;
+signature.setAttribute('aria-label','Draw manager signature using mouse or finger');
+signature.style.cssText='position:absolute;left:64.6%;top:78.5%;width:30.6%;height:3%;touch-action:none;cursor:crosshair;background:transparent';form.appendChild(signature);
+const pen=signature.getContext('2d');pen.lineWidth=3;pen.lineCap='round';pen.lineJoin='round';pen.strokeStyle='#123253';let signing=false;
+function point(e){const r=signature.getBoundingClientRect();return [(e.clientX-r.left)*signature.width/r.width,(e.clientY-r.top)*signature.height/r.height]}
+signature.onpointerdown=e=>{e.preventDefault();signing=true;signature.setPointerCapture(e.pointerId);const [x,y]=point(e);pen.beginPath();pen.moveTo(x,y);pen.lineTo(x+.1,y+.1);pen.stroke()};
+signature.onpointermove=e=>{if(!signing)return;e.preventDefault();pen.lineTo(...point(e));pen.stroke()};
+signature.onpointerup=signature.onpointercancel=()=>{signing=false};
+function clearSignature(){pen.clearRect(0,0,signature.width,signature.height)}
+const clearSign=document.createElement('button');clearSign.type='button';clearSign.textContent='Clear signature';clearSign.onclick=clearSignature;document.querySelector('.toolbar').appendChild(clearSign);
 field('Vacation hours used',222,1262,140,24,'number');field('Unpaid hours',531,1262,135,24,'number');field('Remaining vacation balance',927,1262,103,24,'number');field('Entered in payroll yes',209,1313,20,20,'radio','payroll');field('Entered in payroll no',289,1313,20,20,'radio','payroll');field('Processed by',516,1311,289);field('Payroll date',881,1311,149,24,'date');
-document.getElementById('clear').onclick=()=>{if(confirm('Clear all entries?'))form.reset()};
+document.getElementById('clear').onclick=()=>{if(confirm('Clear all entries?')){form.reset();clearSignature()}};
 document.getElementById('download').onclick=async()=>{
  if(first.value&&last.value&&last.value<first.value){alert('Last date off must be on or after the first date off.');return}
  const button=document.getElementById('download');button.disabled=true;button.textContent='Creating PDF…';
  try{await form.querySelector('img').decode();
- const canvas=await html2canvas(form,{scale:2,backgroundColor:'#fff',width:816,height:1056,windowWidth:1200,onclone:doc=>{
+ const signatureImage=signature.toDataURL('image/png');
+ const canvas=await html2canvas(form,{scale:2,backgroundColor:'#fff',width:816,height:1056,windowWidth:1200,onclone:async doc=>{
+ const copiedSignature=doc.getElementById('managerSignature');const signedImage=doc.createElement('img');signedImage.style.cssText=copiedSignature.style.cssText;signedImage.src=signatureImage;copiedSignature.replaceWith(signedImage);await signedImage.decode();
  doc.querySelectorAll('.field').forEach(el=>{const v=doc.createElement('div');v.className='field value';v.style.cssText=el.style.cssText;
  if(el.type==='checkbox'||el.type==='radio'){v.textContent=el.checked?'✓':'';v.style.fontSize='17px';v.style.lineHeight='15px'}else{v.textContent=el.value;if(el.type==='date'&&el.value){const [y,m,d]=el.value.split('-');v.textContent=m+'/'+d+'/'+y}}
  el.replaceWith(v)});
